@@ -1,11 +1,10 @@
-% gradient keeps on going to +- inf
-% adaptive learning rate
+
 clc
 clear
 close all
 c = 3e8;
-N=4; % #BS
-bias = 0/100; %percentage
+N=8; % #BS
+bias = 5/100; %percentage
 error_thres = 1e-9;
 grid_boun = 20000;
 cell_rad = grid_boun/N;
@@ -15,6 +14,7 @@ X(1)=0;
 Y(1)=0;
 X(2)=200;
 Y(2)=200;
+num_iter = 5e5;
 disp('init BS');
 for ii= 2:N
    temp_x = randsrc(1,1,0:grid_boun);
@@ -43,37 +43,45 @@ X_actual = [MS_x;MS_y;MS_tau];
 for ii=1:N
     TOA(ii) = tau+(1+bias*rand)*sqrt((MS_x-X(ii))^2 + (MS_y-Y(ii))^2)/c;
 end
-learn_rate = [1e-5 0 0;0 1e-5 0;0 0 0];
+learn_rate = [1e-2 0 0;0 1e-2 0;0 0 1.3e-18];
 plot(MS_x,MS_y,"*");
 hold on 
 plot(X,Y,"O");
 iter = 0;
-while norm(del_F) > error_thres && iter <= 1000000
+
+while norm(del_F) > error_thres && iter <= num_iter
     iter = iter+1;
     del_F = F(c,N,X,Y,TOA,X_curr(1),X_curr(2),X_curr(3));
     %learn_rate = [1e-2/del_F(1) 0 0;0 1e-2/del_F(2) 0;0 0 0];    
     delf_f(iter) = norm(del_F); 
     X_next = X_curr - learn_rate*del_F;
     X_curr = X_next;
-    
-%     if delf_f(iter) 
-%         disp('local minima') 
-%         break 
-%     end
-    if mod(iter,1000)==0
-        del_F
-        step = learn_rate*del_F
-        
+    pos_est_x(iter) = X_curr(1);
+    pos_est_y(iter) = X_curr(2);
+
+    if mod(iter,100000)==0
+        fprintf('gradient = [%d  %d  %d]  \n',del_F);
+        fprintf('step = [%d  %d  %d]  \n', learn_rate*del_F);     
     end
 end
 plot(X_curr(1),X_curr(2),"d");
-del_F
-X_actual
-X_curr
-iter
+plot(pos_est_x,pos_est_y,'r');
+hold off
+xlabel('x-coordinates (mtr)');
+ylabel('y-coordinates (mtr)');
+title('MAP');
+legend('true MS pos','BS pos','estimated MS pos','estimate trace path');
+fprintf('gradient = [%d  %d  %d]  \n',del_F);
+fprintf('X_actual = [%d  %d  %d]  \n',X_actual);
+fprintf('X_curr = [%d  %d  %d]  \n',X_curr);
+fprintf('current iterataion = %d \n',iter);
 figure
 plot(delf_f)
-pos_err = rmse(X_curr,X_actual)
+xlabel('iteration');
+ylabel('||gradient||');
+title('gradient');
+pos_err = rmse(X_curr,X_actual);
+fprintf('position error = %d \n',pos_err);
 
 function del_F = F(c,N,X,Y,TOA,x,y,tau)
 % overall cost function
@@ -88,6 +96,6 @@ function del_F = F(c,N,X,Y,TOA,x,y,tau)
         row2 = row2+2*(alpha(ii)^2)*f(ii,x,y,tau)*((Y(ii)-y))/sqrt((X(ii)-x)^2 + (Y(ii)-y)^2);
         row3 = row3-2*c*f(ii,x,y,tau)*(alpha(ii)^2);
     end
-    del_F = [row1;row2;0];
+    del_F = [row1;row2;row3];
     
 end
