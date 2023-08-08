@@ -1,4 +1,4 @@
-
+% make row 3=0 in del_F to estimate only position
 clc
 clear
 close all
